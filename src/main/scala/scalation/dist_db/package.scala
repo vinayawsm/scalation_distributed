@@ -79,4 +79,10 @@ package object dist_db {
 
     case object nameAll
 
+    // persistence methods
+    case class saveRelation (n: String)
+    case class dropRelation (n: String)
+    case class getRelation (n: String)
+    case class getRelReply (n: String, r: Relation)
+
 }

@@ -10,10 +10,9 @@ import scalation.columnar_db.{Relation, TableGen}
   * Created by vinay on 10/14/18.
   */
 
-
 class RelDBWorker extends DistUtil with Actor {
 
-    //    val routee: ActorRef = context.actorOf(Props[RelDBWorker], "routee")
+    // val routee: ActorRef = context.actorOf(Props[RelDBWorker], "routee")
 
     // DBWorker is implementation of worker nodes.
     // This receives messages from master and performs the operations from columnar_db

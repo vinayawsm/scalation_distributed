@@ -52,6 +52,9 @@ lazy val root = (project in file("."))
     libraryDependencies += "com.typesafe.akka" %% "akka-cluster-tools" % "2.5.14",
     libraryDependencies += "com.typesafe.akka" %% "akka-distributed-data" % "2.5.14",
     libraryDependencies += "com.typesafe.akka" %% "akka-remote" % "2.5.14",
+    libraryDependencies += "com.typesafe.akka"          %% "akka-persistence" % "2.5.18",
+    libraryDependencies += "org.iq80.leveldb"            % "leveldb"          % "0.7",
+    libraryDependencies += "org.fusesource.leveldbjni"   % "leveldbjni-all"   % "1.8",
 
     ////////////////////////////////////////////////////////////////////////////////
     // Unit Testing

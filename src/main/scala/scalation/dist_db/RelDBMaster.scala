@@ -2,6 +2,7 @@ package scalation.dist_db
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.routing._
+import akka.persistence.PersistentActor
 
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -14,14 +15,71 @@ import scalation.linalgebra.Vec
   * Created by vinay on 10/10/18.
   */
 
+object RelationPersistence {
+
+    private var mem: Map[ String, Relation ] = Map[ String, Relation ]()
+
+    case class m_saveRelation (n: String, r: Relation)
+    case class m_dropRelation (n: String)
+    case class p_saveRelation (n: String, r: Relation)
+    case class p_dropRelation (n: String)
+    case class p_getRelation (n: String)
+
+}
+
+class RelationPersistence extends PersistentActor {
+
+    override def persistenceId: String = "Relation_Persistence"
+
+    import RelationPersistence._
+
+    override def receiveRecover: Receive = {
+        case m_saveRelation (n, r) =>
+            mem = mem + (n -> r)
+        case m_dropRelation (n) =>
+            mem = mem - n
+    }
+
+    override def receiveCommand: Receive = {
+        case p_saveRelation (n, r) =>
+            persist (m_saveRelation (n, r)) {
+                savingRelation => mem = mem + (n -> r)
+            }
+        case p_dropRelation (n) =>
+            persist (m_dropRelation (n)) {
+                savingRelation => mem = mem - n
+            }
+        case p_getRelation (n) =>
+            sender() ! getRelReply (n, mem(n))
+    }
+
+}
 
 class RelDBMaster extends DistUtil with Actor {
 
+    import RelationPersistence._
+
     // creates a router with `numOfRoutees` routees
     val router: ActorRef = context.actorOf (RoundRobinPool (numOfRoutees).props(Props[RelDBWorker]), "router")
+    val pactor: ActorRef = context.actorOf (Props[RelationPersistence], "persistence_actor")
 
     // DBHandler handles all the DB messages on master side
     def DBHandler (): Receive = {
+
+        // persistence methods
+        case saveRelation (n) =>
+            pactor ! p_saveRelation (n, rSeq (tableMap(n)))
+        case dropRelation (n) =>
+            pactor ! p_dropRelation (n)
+        case getRelation (n) =>
+            updating += (n -> true)
+            pactor ! p_getRelation (n)
+        case getRelReply (n, r) =>
+            if (!tableMap.exists(_._1 == n)) {
+                rSeq += r
+                tableMap += (n -> (rSeq.size - 1))
+            }
+            updating += (n -> false)
 
         // create new relation
         case create (name, colname, key, domain) =>
@@ -170,6 +228,7 @@ class RelDBMaster extends DistUtil with Actor {
             }
 
         case nameAll =>
+            println("Table list: ")
             tableMap.foreach (n => println(n._1))
 
     }
@@ -201,6 +260,34 @@ class RelDBMaster extends DistUtil with Actor {
 
 }
 
+object RelDBMasterTest0 extends App {
+    val actorSystem = ActorSystem("RelationDBMasterTest")
+    val actor = actorSystem.actorOf(Props[RelDBMaster], "root")
+
+    actor ! create("R1", Seq("Name", "Age", "Weight"), 0, "SID")
+
+    actor ! tableGen("R1", 20)
+    actor ! show("R1")
+    actor ! saveRelation("R1")
+
+    Thread.sleep(10000)
+    actorSystem.terminate()
+}
+
+object RelDBMasterTest0_1 extends App {
+    val actorSystem = ActorSystem("RelationDBMasterTest")
+    val actor = actorSystem.actorOf(Props[RelDBMaster], "root")
+
+    actor ! nameAll
+    actor ! getRelation ("R1")
+    Thread.sleep(2000)
+    actor ! nameAll
+
+    actor ! show ("R1")
+
+    Thread.sleep(10000)
+    actorSystem.terminate()
+}
 
 // runMain scalation.dist_db.RelDBMasterTest
 object RelDBMasterTest extends App {
